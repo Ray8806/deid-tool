@@ -112,6 +112,14 @@ class Deidentifier:
             self.mapping[tok] = value
         return self._reverse[k]
 
+    def spans(self, text):
+        """回傳 [(start, end, 替換文字)],供需要保留格式的檔案(docx/pptx)使用。"""
+        names = self.names
+        if self.ner:
+            from .ner import ner_names
+            names = names + ner_names(text)
+        return [(s, e, self._replace(typ, val)) for s, e, typ, val in scan_text(text, names)]
+
     def anonymize_text(self, text):
         names = self.names
         if self.ner:
@@ -136,3 +144,7 @@ class Deidentifier:
 
 def restore_text(text, mapping):
     return TOKEN_RE.sub(lambda m: mapping.get(m.group(0), m.group(0)), text)
+
+
+def restore_spans(text, mapping):
+    return [(m.start(), m.end(), mapping[m.group(0)]) for m in TOKEN_RE.finditer(text) if m.group(0) in mapping]

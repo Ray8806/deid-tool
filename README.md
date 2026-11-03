@@ -17,7 +17,27 @@ python -m deid_tool restore out.csv -o back.csv --map map.json
 python -m deid_tool anonymize in.txt -o out.txt --mode mask
 python -m deid_tool anonymize in.txt -o out.txt --mode hash --key 你的密鑰
 ```
-支援 `.txt/.md`、`.csv`、`.xlsx`。
+支援 `.txt/.md`、`.csv`、`.xlsx`、`.docx`、`.pptx`、`.pdf`。
+
+## Word / PowerPoint / PDF
+```bash
+pip install python-docx python-pptx pymupdf   # 用到哪種裝哪種
+python -m deid_tool anonymize 報告.docx -o out.docx --map map.json --names names.txt
+python -m deid_tool restore out.docx -o back.docx --map map.json
+python -m deid_tool anonymize 簡報.pptx -o out.pptx --map map.json
+python -m deid_tool anonymize 掃描前.pdf -o out.pdf
+```
+| 格式 | 作法 | 可還原 |
+|---|---|---|
+| Word `.docx` | 逐段落替換,保留字型/粗體等格式;處理內文、表格、頁首頁尾、文字方塊、註解、註腳,並清空作者等檔案屬性 | 是(token 模式) |
+| PowerPoint `.pptx` | 同上,另含講者備忘稿 | 是(token 模式) |
+| PDF | 偵測後做**真正的塗黑**(連底層文字層一起移除,複製貼上也找不到),並清空中繼資料 | 否(一律塗黑) |
+
+限制:
+- **圖片內的文字**(截圖、掃描檔、圖表圖片)無法偵測。掃描型 PDF 沒有文字層,工具會警告並略過該頁,請先 OCR 或人工處理。
+- 圖表(chart)內的資料標籤、Word/PPT 內嵌物件不在處理範圍。
+- PDF 若個資被換行或斷成多段,可能搜尋不到,處理後請開啟檢查。
+- 處理完請務必人工打開輸出檔,逐頁確認。
 
 ## 網站版(純前端,推薦給一般使用者)
 `docs/index.html` 是靜態網頁,所有處理都在瀏覽器內完成,沒有後端、不上傳資料,頁面的 CSP 也禁止對外連線。
@@ -25,7 +45,7 @@ python -m deid_tool anonymize in.txt -o out.txt --mode hash --key 你的密鑰
 - 要部署成網址:GitHub repo → Settings → Pages → Deploy from a branch → `main` / `/docs`。
   (私人 repo 使用 Pages 需要付費方案;網頁本身不含任何個資,可考慮改為公開 repo。)
 - 規則與 Python 版一致(`docs/deid-core.js` ↔ `deid_tool/core.py`),修改規則時兩邊都要改。
-- 網站版支援文字、`.txt`、`.csv`(整份當文字處理),不含 Excel、整欄處理與 NER,這些請用 Python 版。
+- 網站版支援文字、`.txt`、`.csv`(整份當文字處理),不含 Excel、Word、PowerPoint、PDF、整欄處理與 NER,這些請用 Python 版。
 
 ## 網頁介面(本機)
 ```bash

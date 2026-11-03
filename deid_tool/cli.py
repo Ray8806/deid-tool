@@ -4,7 +4,7 @@ import json
 import os
 import sys
 
-from .core import Deidentifier, restore_text, scan_text
+from .core import Deidentifier, restore_spans, restore_text, scan_text
 
 
 def _read_names(path):
@@ -54,9 +54,29 @@ def process_xlsx(src, dst, fn, cols):
     wb.save(dst)
 
 
-def process_file(src, dst, fn, cols):
+pdf_hits = []
+
+
+def process_file(src, dst, fn, cols, spans_fn=None, detect_fn=None, quiet=False):
     ext = os.path.splitext(src)[1].lower()
-    if ext == ".csv":
+    if ext in (".docx", ".pptx"):
+        if spans_fn is None:
+            sys.exit(f"不支援此操作的檔案類型:{ext}")
+        from . import office
+        n = (office.process_docx if ext == ".docx" else office.process_pptx)(src, dst, spans_fn)
+        if not quiet:
+            print(f"已處理 {n} 處(圖片、圖表內的文字無法偵測,請人工檢查)")
+    elif ext == ".pdf":
+        if detect_fn is None:
+            sys.exit("PDF 只支援 anonymize / scan(塗黑為不可逆,無法還原)")
+        from .pdf import process_pdf
+        n, blank = process_pdf(src, dst, detect_fn)
+        if not quiet:
+            print(f"PDF 塗黑 {n} 處(不論 --mode,PDF 一律塗黑且不可還原)")
+        pdf_hits.append(n)
+        if blank:
+            print(f"警告:{blank} 頁沒有文字層(掃描圖片),無法偵測,請先 OCR 或人工處理")
+    elif ext == ".csv":
         process_csv(src, dst, fn, cols)
     elif ext in (".xlsx", ".xlsm"):
         process_xlsx(src, dst, fn, cols)
@@ -107,16 +127,19 @@ def main(argv=None):
             p.error("token 模式需要 --map 以便日後還原(不想還原請改用 --mode mask/hash)")
         d = Deidentifier(args.mode, _read_names(args.names), args.key, ner=args.ner)
         process_file(args.input, args.output, lambda t, ft: d.anonymize_cell(t, ft),
-                     _parse_columns(args.column))
+                     _parse_columns(args.column), spans_fn=d.spans,
+                     detect_fn=lambda t: [v for _s, _e, _ty, v in scan_text(t, d.names)])
         if args.map:
             fd = os.open(args.map, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
             with os.fdopen(fd, "w", encoding="utf-8") as f:
                 json.dump(d.mapping, f, ensure_ascii=False, indent=2)
-        print("完成:", json.dumps(d.stats, ensure_ascii=False) or "未偵測到個資")
+        if not args.input.lower().endswith(".pdf"):
+            print("完成:", json.dumps(d.stats, ensure_ascii=False) if d.stats else "未偵測到個資")
     elif args.cmd == "restore":
         with open(args.map, encoding="utf-8") as f:
             mapping = json.load(f)
-        process_file(args.input, args.output, lambda t, _ft: restore_text(t, mapping), {})
+        process_file(args.input, args.output, lambda t, _ft: restore_text(t, mapping), {},
+                     spans_fn=lambda t: restore_spans(t, mapping))
         print("已還原")
     else:
         stats = {}
@@ -128,9 +151,18 @@ def main(argv=None):
             return t
 
         import tempfile
+        def count_spans(t):
+            count(t, None)
+            return []
+
         with tempfile.TemporaryDirectory() as td:
-            process_file(args.input, os.path.join(td, "x" + os.path.splitext(args.input)[1]), count, {})
-        print(json.dumps(stats, ensure_ascii=False) or "未偵測到個資")
+            process_file(args.input, os.path.join(td, "x" + os.path.splitext(args.input)[1]), count, {},
+                         spans_fn=count_spans, quiet=True,
+                         detect_fn=lambda t: [v for _s, _e, _ty, v in scan_text(t, names)])
+        if pdf_hits:
+            print(f"PDF 共偵測到 {pdf_hits[-1]} 處個資(PDF 不分類統計)")
+        else:
+            print(json.dumps(stats, ensure_ascii=False) if stats else "未偵測到個資")
 
 
 if __name__ == "__main__":
