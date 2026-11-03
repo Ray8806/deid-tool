@@ -61,3 +61,9 @@ class GuiTest(unittest.TestCase):
         with self.assertRaises(urllib.error.HTTPError):
             urllib.request.urlopen(req)
         srv.shutdown()
+
+
+class AddrTest(unittest.TestCase):
+    def test_floor_included(self):
+        out = Deidentifier("token").anonymize_text("住台北市大安區和平東路二段106號3樓之2。")
+        self.assertEqual(out, "住<ADDRESS_1>。")

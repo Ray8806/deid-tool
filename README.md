@@ -19,6 +19,14 @@ python -m deid_tool anonymize in.txt -o out.txt --mode hash --key 你的密鑰
 ```
 支援 `.txt/.md`、`.csv`、`.xlsx`。
 
+## 網站版(純前端,推薦給一般使用者)
+`docs/index.html` 是靜態網頁,所有處理都在瀏覽器內完成,沒有後端、不上傳資料,頁面的 CSP 也禁止對外連線。
+- 直接用瀏覽器開啟 `docs/index.html` 即可離線使用。
+- 要部署成網址:GitHub repo → Settings → Pages → Deploy from a branch → `main` / `/docs`。
+  (私人 repo 使用 Pages 需要付費方案;網頁本身不含任何個資,可考慮改為公開 repo。)
+- 規則與 Python 版一致(`docs/deid-core.js` ↔ `deid_tool/core.py`),修改規則時兩邊都要改。
+- 網站版支援文字、`.txt`、`.csv`(整份當文字處理),不含 Excel、整欄處理與 NER,這些請用 Python 版。
+
 ## 網頁介面(本機)
 ```bash
 python -m deid_tool gui            # 開啟 http://127.0.0.1:8765/

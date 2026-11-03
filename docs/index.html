@@ -1,0 +1,58 @@
+<!doctype html>
+<html lang="zh-Hant">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<title>去識別化工具</title>
+<style>
+:root{--bg:#fff;--fg:#1c1c1e;--mut:#555;--bd:#c9c9ce;--ac:#1a56db}
+@media (prefers-color-scheme:dark){:root{--bg:#161618;--fg:#eee;--mut:#aaa;--bd:#444;--ac:#6ea0ff}}
+body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
+main{max-width:920px;margin:0 auto;padding:20px 16px 48px}
+h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:20px 0 6px}
+.note{color:var(--mut);margin:0 0 12px}
+textarea{width:100%;box-sizing:border-box;min-height:160px;padding:8px;font:14px/1.4 ui-monospace,monospace;background:transparent;color:inherit;border:1px solid var(--bd);border-radius:6px}
+.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:10px 0}
+button,select,input{font:inherit;color:inherit;background:transparent;border:1px solid var(--bd);border-radius:6px;padding:7px 12px}
+button{cursor:pointer} button.p{background:var(--ac);border-color:var(--ac);color:#fff}
+#names{min-height:56px;width:220px} #status{color:var(--mut)}
+</style>
+</head>
+<body>
+<main>
+<h1>去識別化工具</h1>
+<p class="note">所有處理都在你的瀏覽器內完成,文字不會上傳到任何伺服器(本頁已禁止對外連線)。關閉分頁後資料即消失。</p>
+
+<h2>輸入</h2>
+<textarea id="inp" placeholder="貼上文字,或載入 .txt / .csv 檔"></textarea>
+<div class="row">
+  <input type="file" id="file" accept=".txt,.md,.csv,text/plain,text/csv">
+  <label>模式<br><select id="mode">
+    <option value="token">token(可還原)</option>
+    <option value="mask">mask(遮蔽)</option>
+    <option value="hash">hash(假名化)</option></select></label>
+  <label>密鑰(hash 用)<br><input id="key" type="password" autocomplete="off"></label>
+  <label>已知姓名(一行一個)<br><textarea id="names"></textarea></label>
+</div>
+<div class="row">
+  <button class="p" id="go">去識別化 ↓</button>
+  <button id="back">用對照表還原 ↓</button>
+  <button id="clear">清除全部</button>
+  <span id="status"></span>
+</div>
+
+<h2>輸出</h2>
+<textarea id="out" readonly></textarea>
+<div class="row"><button id="copy">複製</button><button id="dlOut">下載輸出</button></div>
+
+<h2>對照表(含原始個資,請妥善保管;還原時貼在這裡)</h2>
+<textarea id="map" spellcheck="false"></textarea>
+<div class="row"><button id="dlMap">下載對照表</button></div>
+
+<p class="note">規則式偵測不保證涵蓋所有個資,尤其是沒有關鍵字的人名,正式使用前請人工抽查。</p>
+</main>
+<script src="deid-core.js"></script>
+<script src="app.js"></script>
+</body>
+</html>
