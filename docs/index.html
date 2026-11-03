@@ -29,6 +29,15 @@
     <ul class="chips"><li>身分證</li><li>手機 / 市話</li><li>Email</li><li>地址</li><li>日期</li><li>信用卡</li><li>病歷號</li><li>姓名</li></ul>
   </section>
 
+  <section id="how">
+    <h2>三步驟上手</h2>
+    <div class="cards">
+      <div class="card"><span class="tag">STEP 1</span><h3>放入文字</h3><p>貼上內容、載入 .txt / .csv,或直接點下方的範例。</p></div>
+      <div class="card"><span class="tag">STEP 2</span><h3>選擇模式</h3><p>要日後還原選 token;只要遮掉選 mask;要跨檔案對應同一個人選 hash。</p></div>
+      <div class="card"><span class="tag">STEP 3</span><h3>檢查並使用</h3><p>按「去識別化」,確認右側輸出後再複製或下載。需要時可用對照表還原。</p></div>
+    </div>
+  </section>
+
   <section id="tool">
     <h2>開始使用</h2>
     <div class="tool">
@@ -39,8 +48,18 @@
           <button class="btn" data-mode="hash" title="HMAC 假名化,同一個值得到同一個代號">hash · 假名化</button>
         </div>
         <div class="seg">
-          <button class="btn small" id="sample">載入範例</button>
           <label class="btn small" for="file">載入檔案<input id="file" type="file" accept=".txt,.md,.csv,text/plain,text/csv" hidden></label>
+        </div>
+      </div>
+
+      <p class="modehint" id="modehint"></p>
+      <div class="examples">
+        <span class="label">新手?點一個範例試試</span>
+        <div class="seg" id="examples">
+          <button class="btn small" data-ex="medical">病歷紀錄</button>
+          <button class="btn small" data-ex="chat">客服對話</button>
+          <button class="btn small" data-ex="csv">客戶名單</button>
+          <button class="btn small" data-ex="mail">一般信件</button>
         </div>
       </div>
 
