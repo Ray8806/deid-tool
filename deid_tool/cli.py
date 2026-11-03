@@ -80,6 +80,7 @@ def main(argv=None):
     a.add_argument("--column", action="append", metavar="欄名=類型",
                    help="整欄視為某類型,如 姓名=NAME(CSV/Excel,可重複)")
     a.add_argument("--key", help="hash 模式的密鑰")
+    a.add_argument("--ner", action="store_true", help="用 CKIP NER 偵測人名(需 ckip-transformers)")
 
     r = sub.add_parser("restore", help="用對照表還原")
     r.add_argument("input")
@@ -90,12 +91,21 @@ def main(argv=None):
     s.add_argument("input")
     s.add_argument("--names")
 
+    g = sub.add_parser("gui", help="啟動本機網頁介面")
+    g.add_argument("--port", type=int, default=8765)
+    g.add_argument("--ner", action="store_true")
+    g.add_argument("--no-browser", action="store_true")
+
     args = p.parse_args(argv)
+
+    if args.cmd == "gui":
+        from .gui import serve
+        return serve(args.port, args.ner, not args.no_browser)
 
     if args.cmd == "anonymize":
         if args.mode == "token" and not args.map:
             p.error("token 模式需要 --map 以便日後還原(不想還原請改用 --mode mask/hash)")
-        d = Deidentifier(args.mode, _read_names(args.names), args.key)
+        d = Deidentifier(args.mode, _read_names(args.names), args.key, ner=args.ner)
         process_file(args.input, args.output, lambda t, ft: d.anonymize_cell(t, ft),
                      _parse_columns(args.column))
         if args.map:

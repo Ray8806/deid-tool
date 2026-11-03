@@ -19,6 +19,20 @@ python -m deid_tool anonymize in.txt -o out.txt --mode hash --key 你的密鑰
 ```
 支援 `.txt/.md`、`.csv`、`.xlsx`。
 
+## 網頁介面(本機)
+```bash
+python -m deid_tool gui            # 開啟 http://127.0.0.1:8765/
+python -m deid_tool gui --ner      # 同時啟用 NER 人名偵測
+```
+只綁定 127.0.0.1、不記錄請求內容、不寫入磁碟;對照表只顯示在頁面上,由你自行複製保存。
+
+## NER 人名偵測(選用)
+```bash
+pip install ckip-transformers
+python -m deid_tool anonymize 病歷.txt -o out.txt --map map.json --ner
+```
+可找出沒有「姓名:」等關鍵字提示的人名。首次使用會下載模型(需連網),之後可離線。NER 有誤判與漏判,請人工抽查。
+
 ## 偵測項目
 身分證/居留證(含檢查碼驗證)、手機、市話、Email、信用卡(Luhn)、IP、日期(西元/民國)、地址、病歷號、姓名(關鍵字後面 + `--names` 清單)。
 

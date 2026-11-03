@@ -38,3 +38,26 @@ class T(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class GuiTest(unittest.TestCase):
+    def test_api_roundtrip(self):
+        import json, threading, urllib.request
+        from http.server import ThreadingHTTPServer
+        from deid_tool.gui import make_handler
+        srv = ThreadingHTTPServer(("127.0.0.1", 0), make_handler(False))
+        threading.Thread(target=srv.serve_forever, daemon=True).start()
+        base = f"http://127.0.0.1:{srv.server_port}"
+
+        def post(path, body):
+            r = urllib.request.urlopen(urllib.request.Request(base + path, json.dumps(body).encode()))
+            return json.load(r)
+
+        a = post("/api/anonymize", {"text": SAMPLE, "mode": "token"})
+        self.assertNotIn("A123456789", a["text"])
+        b = post("/api/restore", {"text": a["text"], "mapping": a["mapping"]})
+        self.assertEqual(b["text"], SAMPLE)
+        req = urllib.request.Request(base + "/", headers={"Host": "evil.com"})
+        with self.assertRaises(urllib.error.HTTPError):
+            urllib.request.urlopen(req)
+        srv.shutdown()

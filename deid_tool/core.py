@@ -86,12 +86,12 @@ def scan_text(text, names=(), rules=RULES):
 class Deidentifier:
     """mode: token(可還原)/ mask(遮蔽)/ hash(HMAC 假名化,需 key)。"""
 
-    def __init__(self, mode="token", names=(), key=None):
+    def __init__(self, mode="token", names=(), key=None, ner=False):
         if mode not in ("token", "mask", "hash"):
             raise ValueError("mode 必須是 token / mask / hash")
         if mode == "hash" and not key:
             raise ValueError("hash 模式需要 --key")
-        self.mode, self.names, self.key = mode, list(names), key
+        self.mode, self.names, self.key, self.ner = mode, list(names), key, ner
         self.mapping = {}        # token -> 原值
         self._reverse = {}       # (type, 原值) -> token
         self._counters = {}
@@ -113,7 +113,11 @@ class Deidentifier:
         return self._reverse[k]
 
     def anonymize_text(self, text):
-        hits = scan_text(text, self.names)
+        names = self.names
+        if self.ner:
+            from .ner import ner_names
+            names = names + ner_names(text)
+        hits = scan_text(text, names)
         parts, pos = [], 0
         for s, e, typ, val in hits:
             parts.append(text[pos:s])
