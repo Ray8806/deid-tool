@@ -121,3 +121,28 @@ class ThumbnailTest(unittest.TestCase):
         names = zipfile.ZipFile(os.path.join(td, "b.docx")).namelist()
         self.assertFalse([n for n in names if "thumbnail" in n])
         docx.Document(os.path.join(td, "b.docx"))      # 仍可正常開啟
+
+
+class AutoColumnTests(unittest.TestCase):
+    def test_auto_columns_incl_numeric_phone(self):
+        try:
+            import openpyxl
+            from deid_tool.office import process_xlsx
+        except ImportError:
+            self.skipTest("openpyxl 未安裝")
+        import tempfile, os, zipfile
+        td = tempfile.mkdtemp(); f = lambda n: os.path.join(td, n)
+        wb = openpyxl.Workbook(); ws = wb.active
+        ws.append(["據點", "聯絡人", "連絡電話", "發票地址"])
+        ws.append(["甲公司", "陳小華", 912345678, "台北市中山北路五段575號"])
+        wb.save(f("a.xlsx"))
+        d = Deidentifier("token")
+        process_xlsx(f("a.xlsx"), f("b.xlsx"), d.spans, None, d.anonymize_cell, True)
+        row = [c.value for c in openpyxl.load_workbook(f("b.xlsx")).active[2]]
+        self.assertEqual(row, ["甲公司", "<NAME_1>", "<PHONE_1>", "<ADDRESS_1>"])
+        z = zipfile.ZipFile(f("b.xlsx"))
+        blob = b"".join(z.read(n) for n in z.namelist())
+        for pii in ("陳小華", "912345678", "中山北路"):
+            self.assertNotIn(pii.encode(), blob)
+        process_xlsx(f("a.xlsx"), f("c.xlsx"), d.spans, None, d.anonymize_cell, False)   # 關閉自動
+        self.assertEqual(openpyxl.load_workbook(f("c.xlsx")).active["B2"].value, "陳小華")

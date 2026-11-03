@@ -97,8 +97,9 @@
         <summary>已知姓名清單(一行一個,補強姓名偵測)</summary>
         <textarea id="names" aria-label="已知姓名"></textarea>
         <p class="hint">沒有「姓名:」等關鍵字的人名無法自動辨識,把已知姓名放在這裡就會一併處理。</p>
-        <div class="label colsrow">Excel:整欄當姓名處理的欄名(第一列標題,逗號分隔)</div>
-        <input id="cols" type="text" value="姓名" aria-label="Excel 姓名欄名">
+        <label class="check"><input id="autocols" type="checkbox" checked> Excel 依欄名自動整欄處理(聯絡人、姓名、電話、地址、Email、生日…)</label>
+        <div class="label colsrow">Excel:額外要整欄當姓名處理的欄名(第一列標題,逗號分隔)</div>
+        <input id="cols" type="text" placeholder="例如:經辦、對口" aria-label="額外姓名欄名">
       </details>
       <p class="warn">規則式偵測不保證涵蓋所有個資,正式使用前請人工抽查輸出結果。</p>
     </div>

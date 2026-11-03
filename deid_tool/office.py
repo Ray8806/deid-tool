@@ -187,16 +187,20 @@ def _cell_text(c, shared):
     return None
 
 
-def _force_columns(sheet_root, shared, cols, forced_fn):
+def _force_columns(sheet_root, shared, cols, forced_fn, auto=True, report=None):
     """標題列(第一列)欄名在 cols 內的整欄,文字儲存格整格替換成對應類型代號。回傳 (處數, 被替換前引用的共享字串索引集合)。"""
     rows = list(sheet_root.iter(X + "row"))
     if not rows:
         return 0, set()
     forced = {}
+    from .core import auto_column_type
     for c in rows[0].iter(X + "c"):
         txt = _cell_text(c, shared)
-        if txt in cols:
-            forced[_col(c.get("r"))] = cols[txt]
+        typ = cols.get(txt) or (auto_column_type(txt) if auto else None)
+        if typ and c.get("r"):
+            forced[_col(c.get("r"))] = typ
+            if report is not None:
+                report.append((txt, typ))
     n, touched = 0, set()
     for row in rows[1:]:
         for c in row.iter(X + "c"):
@@ -204,6 +208,9 @@ def _force_columns(sheet_root, shared, cols, forced_fn):
             if not typ:
                 continue
             text = _cell_text(c, shared)
+            if text is None and c.get("t") in (None, "n") and c.find(X + "f") is None:
+                v = c.find(X + "v")      # 數字儲存格(例如以數字儲存的電話):整格也要處理
+                text = v.text if v is not None else None
             if not text:
                 continue
             if c.get("t") == "s":
@@ -219,7 +226,7 @@ def _force_columns(sheet_root, shared, cols, forced_fn):
     return n, touched
 
 
-def process_xlsx(src, dst, spans_fn, cols=None, forced_fn=None):
+def process_xlsx(src, dst, spans_fn, cols=None, forced_fn=None, auto=True, report=None):
     """cols: {欄名: 類型};該欄整欄替換。其餘儲存格逐字串依規則替換。"""
     import re
     import zipfile
@@ -240,11 +247,11 @@ def process_xlsx(src, dst, spans_fn, cols=None, forced_fn=None):
         shared = ["".join(t.text or "" for t in si.iter(X + "t")
                           if not any(a.tag == X + "rPh" for a in t.iterancestors()))
                   for si in sst.iter(X + "si")]
-    if cols and forced_fn:
+    if (cols or auto) and forced_fn:
         touched = set()
         for name, root in trees.items():
             if name.startswith("xl/worksheets/"):
-                n, tch = _force_columns(root, shared, cols, forced_fn)
+                n, tch = _force_columns(root, shared, cols or {}, forced_fn, auto, report)
                 count += n
                 touched |= tch
         if sst is not None and touched:

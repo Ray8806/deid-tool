@@ -21,16 +21,30 @@
     ["EMAIL", /[A-Za-z0-9._%+\-]+@[A-Za-z0-9.\-]+\.[A-Za-z]{2,}/dg, false, null],
     ["ID", /(?<![A-Za-z0-9])[A-Z][12ABCD89]\d{8}(?!\d)/dg, false, validTwId],
     ["CARD", /(?<!\d)\d{4}[- ]?\d{4}[- ]?\d{4}[- ]?\d{4}(?!\d)/dg, false, luhn],
-    ["PHONE", /(?<!\d)09\d{2}[-\s]?\d{3}[-\s]?\d{3}(?!\d)/dg, false, null],
-    ["PHONE", /(?<!\d)\(?0\d{1,2}\)?[-\s]\d{3,4}[-\s]?\d{3,4}(?!\d)/dg, false, null],
+    ["PHONE", /(?<![\d+])(?:\+?886[-\s]?9|09)\d{2}[-\s]?\d{3}[-\s]?\d{3}(?!\d)/dg, false, null],
+    ["PHONE", /(?<!\d)(?:\(0\d{1,2}\)|0\d{1,2}[-\s])\s?\d{3,4}[-\s]?\d{3,4}(?!\d)(?:\s?(?:#|分機|ext\.?|轉)\s?\d{1,6})?/dg, false, null],
     ["IP", /(?<![\d.])(?:(?:25[0-5]|2[0-4]\d|1?\d?\d)\.){3}(?:25[0-5]|2[0-4]\d|1?\d?\d)(?![\d.])/dg, false, null],
     ["DATE", /民國\s?\d{2,3}\s?年\s?\d{1,2}\s?月\s?\d{1,2}\s?日/dg, false, null],
     ["DATE", /(?<!\d)(?:19|20)\d{2}\s?年\s?\d{1,2}\s?月\s?\d{1,2}\s?日/dg, false, null],
     ["DATE", /(?<!\d)(?:19|20)\d{2}[-/.]\d{1,2}[-/.]\d{1,2}(?!\d)/dg, false, null],
-    ["ADDRESS", /(?:[台臺]北|新北|桃園|[台臺]中|[台臺]南|高雄|基隆|新竹|嘉義|苗栗|彰化|南投|雲林|屏東|宜蘭|花蓮|[台臺]東|澎湖|金門|連江)[縣市][一-鿿]{1,4}[鄉鎮市區][一-鿿0-9\-之]{1,30}?號(?:之\d+)?(?:\d+樓(?:之\d+)?)?/dg, false, null],
+    ["ADDRESS", /(?<!\d)(?:\d{3}(?:\d{2,3})?\s?)?(?:[台臺]北|新北|桃園|[台臺]中|[台臺]南|高雄|基隆|新竹|嘉義|苗栗|彰化|南投|雲林|屏東|宜蘭|花蓮|[台臺]東|澎湖|金門|連江)[縣市](?:[一-鿿]{1,4}[鄉鎮市區])?[一-鿿0-9\-之]{1,30}?號(?:之\d+)?(?:[,，\s]?\d+(?:樓|[Ff])(?:之\d+)?)?(?:[,，\s]?\d+室)?/dg, false, null],
+    ["ADDRESS", /(?<![一-鿿0-9])[一-鿿]{2,3}(?:路|街|大道)(?:[一-鿿0-9]{1,3}段)?(?:\d+巷)?(?:\d+弄)?\d+號(?:之\d+)?(?:[,，\s]?\d+(?:樓|[Ff])(?:之\d+)?)?(?:[,，\s]?\d+室)?/dg, false, null],
     ["MRN", /(?:病歷號碼?|病歷編號|MRN)\s*[:：#]?\s*([A-Za-z0-9\-]{4,})/dg, true, null],
     ["NAME", /(?:姓名|病患|病人|患者|醫師|醫生|護理師|聯絡人|家屬|監護人)\s*[:：]?\s*([一-鿿]{2,4})/dg, true, null],
   ];
+  const AUTO = [
+    ["PHONE", ["電話", "手機", "傳真", "phone", "mobile", "fax"]],
+    ["ADDRESS", ["地址", "住址", "通訊處", "address"]],
+    ["EMAIL", ["信箱", "email", "e-mail", "電子郵件"]],
+    ["ID", ["身分證", "身份證", "居留證", "護照"]],
+    ["DATE", ["生日", "出生"]],
+    ["NAME", ["姓名", "名字", "聯絡人", "負責人", "收件人", "收貨人", "承辦人", "申請人", "代表人", "窗口", "病人", "患者"]],
+  ];
+  function autoColumnType(header) {   // 依欄位標題判斷整欄類型
+    const h = String(header || "").toLowerCase();
+    for (const [typ, keys] of AUTO) if (keys.some((k) => h.includes(k))) return typ;
+    return null;
+  }
   const esc = (s) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
   function scanText(text, names = []) {
@@ -93,6 +107,6 @@
 
   const restoreSpans = (text, mapping) =>
     [...text.matchAll(/<([A-Z]+)_(\d+)>/g)].filter((m) => m[0] in mapping).map((m) => [m.index, m.index + m[0].length, mapping[m[0]]]);
-  const api = { Deidentifier, scanText, restore, restoreSpans, validTwId, luhn };
+  const api = { Deidentifier, scanText, restore, restoreSpans, validTwId, luhn, autoColumnType };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Deid = api;
 })(typeof self !== "undefined" ? self : globalThis);

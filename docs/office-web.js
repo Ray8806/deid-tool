@@ -75,7 +75,7 @@
     return null;
   }
   // 標題列(第一列)欄名在 cols 內的整欄,文字儲存格整格換成 forcedFn(原文) 的結果
-  async function forceColumns(zip, names, cols, forcedFn) {
+  async function forceColumns(zip, names, cols, forcedFn, auto, report) {
     const sstName = "xl/sharedStrings.xml";
     let sstDoc = null, shared = [];
     if (zip.file(sstName)) {
@@ -91,16 +91,24 @@
       docs[n] = doc;
       const rows = all(doc.documentElement, NS.x, "row");
       if (!rows.length) continue;
-      const forced = new Set();
-      for (const c of all(rows[0], NS.x, "c")) if (c.getAttribute("r") && cols.has(cellText(c, shared))) forced.add(colOf(c.getAttribute("r")));
+      const forced = new Map();
+      for (const c of all(rows[0], NS.x, "c")) {
+        const r = c.getAttribute("r"); if (!r) continue;
+        const h = cellText(c, shared);
+        const typ = (cols && cols.get(h)) || (auto ? root.Deid.autoColumnType(h) : null);
+        if (typ) { forced.set(colOf(r), typ); report.push([h, typ]); }
+      }
       for (const row of rows.slice(1)) {
         for (const c of all(row, NS.x, "c")) {
           const r = c.getAttribute("r");
           if (!r || !forced.has(colOf(r))) continue;
-          const text = cellText(c, shared);
+          let text = cellText(c, shared);
+          if (text === null && [null, "n"].includes(c.getAttribute("t")) && !all(c, NS.x, "f").length) {
+            const v = all(c, NS.x, "v")[0]; text = v ? v.textContent : null;   // 數字儲存格也處理
+          }
           if (!text) continue;
           if (c.getAttribute("t") === "s") touched.add(+all(c, NS.x, "v")[0].textContent);
-          const nw = await forcedFn(text);
+          const nw = await forcedFn(text, forced.get(colOf(r)));
           while (c.firstChild) c.removeChild(c.firstChild);
           c.setAttribute("t", "inlineStr");
           const is = doc.createElementNS(NS.x, "is"), t = doc.createElementNS(NS.x, "t");
@@ -132,8 +140,8 @@
     const zip = await JSZip.loadAsync(buf);
     const names = Object.keys(zip.files).filter((n) => !zip.files[n].dir);
     let count = 0;
-    if (ext === "xlsx" && opts.cols && opts.cols.size && opts.forcedFn) {
-      count += await forceColumns(zip, names, opts.cols, opts.forcedFn);
+    if (ext === "xlsx" && opts.forcedFn && ((opts.cols && opts.cols.size) || opts.auto)) {
+      count += await forceColumns(zip, names, opts.cols, opts.forcedFn, !!opts.auto, opts.report || []);
     }
     for (const name of names) {
       let kind = null;

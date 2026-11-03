@@ -50,13 +50,14 @@ function showStats(stats) {
 
 async function runOffice(kind) {
   const ext = pending.ext;
-  let outName, spansFn, opts = {}, d = null;
+  let outName, spansFn, opts = {}, d = null, colReport = [];
   if (kind === "anonymize") {
     const names = $("names").value.split("\n").map((s) => s.trim()).filter(Boolean);
     d = new Deid.Deidentifier(mode, names, $("key").value);
     spansFn = (t) => d.spans(t);
-    const cols = new Set($("cols").value.split(/[,,、]/).map((s) => s.trim()).filter(Boolean));
-    opts = { cols, forcedFn: (t) => d._replace("NAME", t) };
+    const cols = new Map($("cols").value.split(/[,,、]/).map((s) => s.trim()).filter(Boolean).map((k) => [k, "NAME"]));
+    colReport = [];
+    opts = { cols, auto: $("autocols").checked, report: colReport, forcedFn: (t, typ) => d._replace(typ || "NAME", t) };
     outName = "deidentified-" + pending.name;
   } else {
     const mapping = JSON.parse($("map").value || "{}");
@@ -73,7 +74,8 @@ async function runOffice(kind) {
     if (mode === "token") $("mapbox").open = true;
     showStats(d.stats);
   } else showStats({});
-  say("完成。圖片與圖表內的文字無法偵測,請打開檔案人工檢查。");
+  const done = colReport.length ? "整欄處理:" + [...new Map(colReport.map(([h, t]) => [h, h + "→" + (LABELS[t] || t)])).values()].join("、") + "。" : "";
+  say("完成。" + done + "圖片與圖表內的文字無法偵測,請打開檔案人工檢查。");
 }
 
 async function anonymize() {

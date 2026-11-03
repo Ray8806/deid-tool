@@ -4,7 +4,7 @@ import json
 import os
 import sys
 
-from .core import Deidentifier, restore_spans, restore_text, scan_text
+from .core import Deidentifier, auto_column_type, restore_spans, restore_text, scan_text
 
 
 def _read_names(path):
@@ -28,12 +28,17 @@ def process_csv(src, dst, fn, cols):
     if not rows:
         return
     header = rows[0]
-    forced = {i: cols[h] for i, h in enumerate(header) if h in cols}
+    forced = {}
+    for i, h in enumerate(header):
+        typ = cols.get(h) or (auto_column_type(h) if AUTO_COLUMNS[0] else None)
+        if typ:
+            forced[i] = typ
     out = [header] + [[fn(c, forced.get(i)) for i, c in enumerate(r)] for r in rows[1:]]
     with open(dst, "w", newline="", encoding="utf-8") as f:
         csv.writer(f).writerows(out)
 
 
+AUTO_COLUMNS = [True]
 pdf_hits = []
 
 
@@ -45,8 +50,11 @@ def process_file(src, dst, fn, cols, spans_fn=None, detect_fn=None, quiet=False)
         from . import office
         fns = {".docx": office.process_docx, ".pptx": office.process_pptx,
                ".xlsx": office.process_xlsx, ".xlsm": office.process_xlsx}
-        n = (fns[ext](src, dst, spans_fn, cols, fn) if ext in (".xlsx", ".xlsm")
+        report = []
+        n = (fns[ext](src, dst, spans_fn, cols, fn, AUTO_COLUMNS[0], report) if ext in (".xlsx", ".xlsm")
              else fns[ext](src, dst, spans_fn))
+        if report and not quiet:
+            print("整欄處理的欄位:", "、".join(f"{h}→{t}" for h, t in dict.fromkeys(report)))
         if not quiet:
             print(f"已處理 {n} 處(圖片、圖表內的文字無法偵測,請人工檢查)")
     elif ext == ".pdf":
@@ -81,6 +89,8 @@ def main(argv=None):
     a.add_argument("--column", action="append", metavar="欄名=類型",
                    help="整欄視為某類型,如 姓名=NAME(CSV/Excel,可重複)")
     a.add_argument("--key", help="hash 模式的密鑰")
+    a.add_argument("--no-auto-columns", action="store_true",
+                   help="關閉依欄名自動判斷(預設會把「聯絡人/電話/地址/Email/生日…」等欄整欄處理)")
     a.add_argument("--ner", action="store_true", help="用 CKIP NER 偵測人名(需 ckip-transformers)")
 
     r = sub.add_parser("restore", help="用對照表還原")
@@ -106,6 +116,7 @@ def main(argv=None):
     if args.cmd == "anonymize":
         if args.mode == "token" and not args.map:
             p.error("token 模式需要 --map 以便日後還原(不想還原請改用 --mode mask/hash)")
+        AUTO_COLUMNS[0] = not args.no_auto_columns
         d = Deidentifier(args.mode, _read_names(args.names), args.key, ner=args.ner)
         process_file(args.input, args.output, lambda t, ft: d.anonymize_cell(t, ft),
                      _parse_columns(args.column), spans_fn=d.spans,

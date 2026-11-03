@@ -67,3 +67,26 @@ class AddrTest(unittest.TestCase):
     def test_floor_included(self):
         out = Deidentifier("token").anonymize_text("住台北市大安區和平東路二段106號3樓之2。")
         self.assertEqual(out, "住<ADDRESS_1>。")
+
+
+class RealWorldFormats(unittest.TestCase):
+    def anon(self, t):
+        return Deidentifier("token").anonymize_text(t)
+
+    def test_address_without_district_and_with_floor(self):
+        for a in ("台北市中山北路五段575號", "台北市民生東路三段129號", "台北市士林區中山北路五段575號3樓",
+                  "106台北市大安區和平東路二段106號5F", "高雄市前鎮區中山二路5號2樓"):
+            self.assertEqual(self.anon(a), "<ADDRESS_1>", a)
+
+    def test_phone_formats(self):
+        for ph in ("(02)2716-5666", "02-2716-5666", "(02) 2716-5666 #905", "02-27165666 分機123",
+                   "+886-912-345-678", "0912345678", "0912-345-678"):
+            self.assertEqual(self.anon(ph), "<PHONE_1>", ph)
+
+    def test_company_tax_id_untouched(self):
+        self.assertEqual(self.anon("統一編號 12345678"), "統一編號 12345678")
+
+    def test_auto_column_type(self):
+        from deid_tool.core import auto_column_type as t
+        self.assertEqual([t(h) for h in ("聯絡人", "連絡電話", "發票地址", "Email", "出生日", "聯絡人電話", "據點抬頭", "統一編號")],
+                         ["NAME", "PHONE", "ADDRESS", "EMAIL", "DATE", "PHONE", None, None])
