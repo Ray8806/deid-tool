@@ -3,55 +3,91 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'unsafe-inline'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'none'; base-uri 'none'; form-action 'none'">
 <title>去識別化工具</title>
-<style>
-:root{--bg:#fff;--fg:#1c1c1e;--mut:#555;--bd:#c9c9ce;--ac:#1a56db}
-@media (prefers-color-scheme:dark){:root{--bg:#161618;--fg:#eee;--mut:#aaa;--bd:#444;--ac:#6ea0ff}}
-body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.5 system-ui,sans-serif}
-main{max-width:920px;margin:0 auto;padding:20px 16px 48px}
-h1{font-size:22px;margin:0 0 4px} h2{font-size:16px;margin:20px 0 6px}
-.note{color:var(--mut);margin:0 0 12px}
-textarea{width:100%;box-sizing:border-box;min-height:160px;padding:8px;font:14px/1.4 ui-monospace,monospace;background:transparent;color:inherit;border:1px solid var(--bd);border-radius:6px}
-.row{display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin:10px 0}
-button,select,input{font:inherit;color:inherit;background:transparent;border:1px solid var(--bd);border-radius:6px;padding:7px 12px}
-button{cursor:pointer} button.p{background:var(--ac);border-color:var(--ac);color:#fff}
-#names{min-height:56px;width:220px} #status{color:var(--mut)}
-</style>
+<meta name="description" content="在瀏覽器內完成的個資去識別化工具,資料不會離開你的電腦。">
+<link rel="stylesheet" href="style.css">
+<script src="theme.js"></script>
 </head>
 <body>
-<main>
-<h1>去識別化工具</h1>
-<p class="note">所有處理都在你的瀏覽器內完成,文字不會上傳到任何伺服器(本頁已禁止對外連線)。關閉分頁後資料即消失。</p>
+<header class="nav">
+  <a class="logo" href="#top">DE-ID<span>.</span>TOOL</a>
+  <nav>
+    <a href="#tool">工具</a>
+    <a href="#about">說明</a>
+    <a href="https://github.com/Ray8806/deid-tool" target="_blank" rel="noopener">GitHub</a>
+    <button id="theme" aria-label="切換深色模式">◐</button>
+  </nav>
+</header>
 
-<h2>輸入</h2>
-<textarea id="inp" placeholder="貼上文字,或載入 .txt / .csv 檔"></textarea>
-<div class="row">
-  <input type="file" id="file" accept=".txt,.md,.csv,text/plain,text/csv">
-  <label>模式<br><select id="mode">
-    <option value="token">token(可還原)</option>
-    <option value="mask">mask(遮蔽)</option>
-    <option value="hash">hash(假名化)</option></select></label>
-  <label>密鑰(hash 用)<br><input id="key" type="password" autocomplete="off"></label>
-  <label>已知姓名(一行一個)<br><textarea id="names"></textarea></label>
-</div>
-<div class="row">
-  <button class="p" id="go">去識別化 ↓</button>
-  <button id="back">用對照表還原 ↓</button>
-  <button id="clear">清除全部</button>
-  <span id="status"></span>
-</div>
+<main id="top">
+  <section class="hero">
+    <p class="eyebrow">PRIVACY · 100% LOCAL</p>
+    <h1>去識別化工具</h1>
+    <p class="role">個資遮蔽 · 可還原</p>
+    <p class="lead">貼上文字,一鍵移除身分證、電話、地址、姓名等個資。所有處理都在你的瀏覽器內完成,不上傳、不連線。</p>
+    <ul class="chips"><li>身分證</li><li>手機 / 市話</li><li>Email</li><li>地址</li><li>日期</li><li>信用卡</li><li>病歷號</li><li>姓名</li></ul>
+  </section>
 
-<h2>輸出</h2>
-<textarea id="out" readonly></textarea>
-<div class="row"><button id="copy">複製</button><button id="dlOut">下載輸出</button></div>
+  <section id="tool">
+    <h2>開始使用</h2>
+    <div class="tool">
+      <div class="bar">
+        <div class="seg" id="modes" role="group" aria-label="模式">
+          <button class="btn on" data-mode="token" title="換成代號,可用對照表還原">token · 可還原</button>
+          <button class="btn" data-mode="mask" title="以 * 遮蔽,不可還原">mask · 遮蔽</button>
+          <button class="btn" data-mode="hash" title="HMAC 假名化,同一個值得到同一個代號">hash · 假名化</button>
+        </div>
+        <div class="seg">
+          <button class="btn small" id="sample">載入範例</button>
+          <label class="btn small" for="file">載入檔案<input id="file" type="file" accept=".txt,.md,.csv,text/plain,text/csv" hidden></label>
+        </div>
+      </div>
 
-<h2>對照表(含原始個資,請妥善保管;還原時貼在這裡)</h2>
-<textarea id="map" spellcheck="false"></textarea>
-<div class="row"><button id="dlMap">下載對照表</button></div>
+      <div id="keyrow"><div class="label">密鑰(hash 模式用,請自行保管)</div><input id="key" type="password" autocomplete="off" aria-label="密鑰"></div>
 
-<p class="note">規則式偵測不保證涵蓋所有個資,尤其是沒有關鍵字的人名,正式使用前請人工抽查。</p>
+      <div class="grid io">
+        <div class="pane"><div class="label">輸入</div><textarea id="inp" placeholder="貼上要處理的文字" aria-label="輸入"></textarea></div>
+        <div class="pane"><div class="label"><span>輸出</span><span><button class="btn small" id="copy">複製</button> <button class="btn small" id="dlOut">下載</button></span></div><textarea id="out" readonly aria-label="輸出"></textarea></div>
+      </div>
+
+      <div class="acts">
+        <button class="btn primary" id="go">去識別化</button>
+        <button class="btn" id="back">用對照表還原</button>
+        <button class="btn" id="clear">清除全部</button>
+      </div>
+      <ul class="chips left" id="sum"></ul>
+      <div class="status" id="status" role="status"></div>
+
+      <details id="mapbox">
+        <summary>對照表(含原始個資,請妥善保管;還原時貼在這裡)</summary>
+        <textarea id="map" spellcheck="false" aria-label="對照表"></textarea>
+        <div class="acts"><button class="btn small" id="dlMap">下載對照表</button></div>
+      </details>
+      <details>
+        <summary>已知姓名清單(一行一個,補強姓名偵測)</summary>
+        <textarea id="names" aria-label="已知姓名"></textarea>
+        <p class="hint">沒有「姓名:」等關鍵字的人名無法自動辨識,把已知姓名放在這裡就會一併處理。</p>
+      </details>
+      <p class="warn">規則式偵測不保證涵蓋所有個資,正式使用前請人工抽查輸出結果。</p>
+    </div>
+  </section>
+
+  <section id="about">
+    <h2>為什麼可以放心</h2>
+    <div class="cards">
+      <div class="card"><span class="tag">LOCAL</span><h3>資料不離開瀏覽器</h3><p>沒有後端伺服器,處理全在你的裝置完成。關閉分頁後資料即消失。</p></div>
+      <div class="card"><span class="tag">CSP</span><h3>禁止對外連線</h3><p>頁面以內容安全政策封鎖所有網路請求,即使有人想外傳也做不到。</p></div>
+      <div class="card"><span class="tag">OPEN SOURCE</span><h3>原始碼公開</h3><p>規則與程式皆公開可檢視。另有 Python 版,支援 Excel、整欄處理與 NER 人名偵測。</p></div>
+    </div>
+  </section>
 </main>
+
+<footer>
+  <a href="https://github.com/Ray8806/deid-tool" target="_blank" rel="noopener">GitHub 原始碼</a>
+  &nbsp;·&nbsp;
+  <a href="https://ray8806.github.io/Personal-website/">返回個人網站</a>
+</footer>
 <script src="deid-core.js"></script>
 <script src="app.js"></script>
 </body>
