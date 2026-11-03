@@ -22,14 +22,6 @@ def _parse_columns(items):
     return out
 
 
-def _load_xlsx():
-    try:
-        import openpyxl
-        return openpyxl
-    except ImportError:
-        sys.exit("處理 .xlsx 需要 openpyxl:pip install openpyxl")
-
-
 def process_csv(src, dst, fn, cols):
     with open(src, newline="", encoding="utf-8-sig") as f:
         rows = list(csv.reader(f))
@@ -42,28 +34,19 @@ def process_csv(src, dst, fn, cols):
         csv.writer(f).writerows(out)
 
 
-def process_xlsx(src, dst, fn, cols):
-    wb = _load_xlsx().load_workbook(src)
-    for ws in wb.worksheets:
-        header = [c.value for c in ws[1]] if ws.max_row else []
-        forced = {i: cols[h] for i, h in enumerate(header) if h in cols}
-        for row in ws.iter_rows(min_row=2):
-            for i, cell in enumerate(row):
-                if cell.value is not None:
-                    cell.value = fn(str(cell.value), forced.get(i))
-    wb.save(dst)
-
-
 pdf_hits = []
 
 
 def process_file(src, dst, fn, cols, spans_fn=None, detect_fn=None, quiet=False):
     ext = os.path.splitext(src)[1].lower()
-    if ext in (".docx", ".pptx"):
+    if ext in (".docx", ".pptx", ".xlsx", ".xlsm"):
         if spans_fn is None:
             sys.exit(f"不支援此操作的檔案類型:{ext}")
         from . import office
-        n = (office.process_docx if ext == ".docx" else office.process_pptx)(src, dst, spans_fn)
+        fns = {".docx": office.process_docx, ".pptx": office.process_pptx,
+               ".xlsx": office.process_xlsx, ".xlsm": office.process_xlsx}
+        n = (fns[ext](src, dst, spans_fn, cols, fn) if ext in (".xlsx", ".xlsm")
+             else fns[ext](src, dst, spans_fn))
         if not quiet:
             print(f"已處理 {n} 處(圖片、圖表內的文字無法偵測,請人工檢查)")
     elif ext == ".pdf":
@@ -78,8 +61,6 @@ def process_file(src, dst, fn, cols, spans_fn=None, detect_fn=None, quiet=False)
             print(f"警告:{blank} 頁沒有文字層(掃描圖片),無法偵測,請先 OCR 或人工處理")
     elif ext == ".csv":
         process_csv(src, dst, fn, cols)
-    elif ext in (".xlsx", ".xlsm"):
-        process_xlsx(src, dst, fn, cols)
     else:
         with open(src, encoding="utf-8") as f:
             text = f.read()

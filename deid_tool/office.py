@@ -56,6 +56,42 @@ def _process_parts(package, p_tag, t_tag, spans_fn):
     return count
 
 
+def _scrub_authors(package):
+    """Word 註解/追蹤修訂的 w:author、w:initials,以及 PPT 註解作者清單。"""
+    for part in package.iter_parts():
+        root = getattr(part, "_element", None)
+        if root is None:
+            continue
+        for el in root.iter():
+            for attr in ("author", "initials", "name"):
+                key = W + attr
+                if el.tag in (W + "comment", W + "ins", W + "del", W + "moveFrom", W + "moveTo") \
+                        and key in el.attrib and attr != "name":
+                    el.set(key, "作者" if attr == "author" else "")
+            if el.tag.endswith("}cmAuthor"):
+                el.set("name", "作者")
+                el.set("initials", "")
+
+
+def strip_thumbnail(path):
+    """移除檔案內嵌的預覽縮圖(會顯示第一頁原始內容)及其關聯。"""
+    import os
+    import re
+    import tempfile
+    import zipfile
+    fd, tmp = tempfile.mkstemp(suffix=os.path.splitext(path)[1])
+    os.close(fd)
+    with zipfile.ZipFile(path) as zin, zipfile.ZipFile(tmp, "w") as zout:
+        for info in zin.infolist():
+            if info.filename.startswith("docProps/thumbnail"):
+                continue
+            data = zin.read(info.filename)
+            if info.filename == "_rels/.rels":
+                data = re.sub(rb"<Relationship\b[^>]*thumbnail[^>]*/>", b"", data)
+            zout.writestr(info, data, compress_type=info.compress_type)
+    os.replace(tmp, path)
+
+
 def _scrub_props(cp):
     for f in ("author", "last_modified_by", "title", "subject", "comments", "keywords", "category"):
         try:
@@ -71,8 +107,10 @@ def process_docx(src, dst, spans_fn):
         raise SystemExit("處理 .docx 需要:pip install python-docx")
     doc = docx.Document(src)
     n = _process_parts(doc.part.package, W + "p", W + "t", spans_fn)
+    _scrub_authors(doc.part.package)
     _scrub_props(doc.core_properties)
     doc.save(dst)
+    strip_thumbnail(dst)
     return n
 
 
@@ -83,6 +121,158 @@ def process_pptx(src, dst, spans_fn):
         raise SystemExit("處理 .pptx 需要:pip install python-pptx")
     prs = pptx.Presentation(src)
     n = _process_parts(prs.part.package, A + "p", A + "t", spans_fn)
+    _scrub_authors(prs.part.package)
     _scrub_props(prs.core_properties)
     prs.save(dst)
+    strip_thumbnail(dst)
     return n
+
+
+# ---------- Excel(直接改 xlsx 內部 XML,不經 openpyxl:格式/公式/圖片/圖表都保持原樣) ----------
+X = "{http://schemas.openxmlformats.org/spreadsheetml/2006/main}"
+_PROPS = {
+    "{http://purl.org/dc/elements/1.1/}creator", "{http://purl.org/dc/elements/1.1/}title",
+    "{http://purl.org/dc/elements/1.1/}subject", "{http://purl.org/dc/elements/1.1/}description",
+    "{http://schemas.openxmlformats.org/package/2006/metadata/core-properties}lastModifiedBy",
+    "{http://schemas.openxmlformats.org/package/2006/metadata/core-properties}keywords",
+    "{http://schemas.openxmlformats.org/officeDocument/2006/extended-properties}Company",
+    "{http://schemas.openxmlformats.org/officeDocument/2006/extended-properties}Manager",
+}
+
+
+def _x_units(root, spans_fn):
+    """共享字串 <si>、行內字串 <is>、註解 <text>:每個視為一個『段落』(忽略注音 rPh)。"""
+    count = 0
+    for tag in (X + "si", X + "is", X + "text"):
+        for unit in list(root.iter(tag)):
+            nodes = [t for t in unit.iter(X + "t")
+                     if not any(a.tag == X + "rPh" for a in t.iterancestors())]
+            text = "".join(n.text or "" for n in nodes)
+            if text:
+                spans = spans_fn(text)
+                if spans:
+                    _rewrite(nodes, spans)
+                    count += len(spans)
+    return count
+
+
+def _drawing_paras(root, spans_fn):
+    count = 0
+    for p in list(root.iter(A + "p")):
+        nodes = _own_texts(p, A + "p", A + "t")
+        text = "".join(n.text or "" for n in nodes)
+        if text:
+            spans = spans_fn(text)
+            if spans:
+                _rewrite(nodes, spans)
+                count += len(spans)
+    return count
+
+
+def _col(ref):
+    import re
+    return re.match(r"[A-Z]+", ref).group(0)
+
+
+def _cell_text(c, shared):
+    t = c.get("t")
+    if t == "s":
+        v = c.find(X + "v")
+        return shared[int(v.text)] if v is not None and v.text else None
+    if t == "inlineStr":
+        return "".join(n.text or "" for n in c.iter(X + "t"))
+    if t == "str":
+        v = c.find(X + "v")
+        return v.text if v is not None else None
+    return None
+
+
+def _force_columns(sheet_root, shared, cols, forced_fn):
+    """標題列(第一列)欄名在 cols 內的整欄,文字儲存格整格替換成對應類型代號。回傳 (處數, 被替換前引用的共享字串索引集合)。"""
+    rows = list(sheet_root.iter(X + "row"))
+    if not rows:
+        return 0, set()
+    forced = {}
+    for c in rows[0].iter(X + "c"):
+        txt = _cell_text(c, shared)
+        if txt in cols:
+            forced[_col(c.get("r"))] = cols[txt]
+    n, touched = 0, set()
+    for row in rows[1:]:
+        for c in row.iter(X + "c"):
+            typ = forced.get(_col(c.get("r"))) if c.get("r") else None
+            if not typ:
+                continue
+            text = _cell_text(c, shared)
+            if not text:
+                continue
+            if c.get("t") == "s":
+                touched.add(int(c.find(X + "v").text))
+            new = forced_fn(text, typ)
+            for ch in list(c):
+                c.remove(ch)
+            c.set("t", "inlineStr")
+            from lxml import etree
+            t = etree.SubElement(etree.SubElement(c, X + "is"), X + "t")
+            t.text = new
+            n += 1
+    return n, touched
+
+
+def process_xlsx(src, dst, spans_fn, cols=None, forced_fn=None):
+    """cols: {欄名: 類型};該欄整欄替換。其餘儲存格逐字串依規則替換。"""
+    import re
+    import zipfile
+    from lxml import etree
+    count = 0
+    with zipfile.ZipFile(src) as zin:
+        infos = zin.infolist()
+        raw = {i.filename: zin.read(i.filename) for i in infos}
+    trees = {}
+    for name, data in raw.items():
+        if re.fullmatch(r"xl/(sharedStrings|comments\d*|comments/[^/]+|worksheets/sheet\d+)\.xml", name) \
+                or re.fullmatch(r"xl/drawings/drawing\d+\.xml", name) \
+                or name in ("docProps/core.xml", "docProps/app.xml"):
+            trees[name] = etree.fromstring(data)
+    shared = []
+    sst = trees.get("xl/sharedStrings.xml")
+    if sst is not None:
+        shared = ["".join(t.text or "" for t in si.iter(X + "t")
+                          if not any(a.tag == X + "rPh" for a in t.iterancestors()))
+                  for si in sst.iter(X + "si")]
+    if cols and forced_fn:
+        touched = set()
+        for name, root in trees.items():
+            if name.startswith("xl/worksheets/"):
+                n, tch = _force_columns(root, shared, cols, forced_fn)
+                count += n
+                touched |= tch
+        if sst is not None and touched:
+            still = {int(c.find(X + "v").text) for name, root in trees.items()
+                     if name.startswith("xl/worksheets/")
+                     for c in root.iter(X + "c") if c.get("t") == "s" and c.find(X + "v") is not None}
+            orphan = touched - still   # 已不再被引用的共享字串:清空,避免原值殘留在檔案裡
+            for idx, si in enumerate(sst.iter(X + "si")):
+                if idx in orphan:
+                    for ch in list(si):
+                        si.remove(ch)
+                    etree.SubElement(si, X + "t").text = ""
+    for name, root in trees.items():
+        if name.startswith("docProps/"):
+            for el in root.iter():
+                if el.tag in _PROPS:
+                    el.text = ""
+        elif name.startswith("xl/drawings/"):
+            count += _drawing_paras(root, spans_fn)
+        else:
+            for a in root.iter(X + "author"):   # 註解作者(通常是本人姓名)
+                a.text = "作者"
+            count += _x_units(root, spans_fn)
+    with zipfile.ZipFile(dst, "w") as zout:
+        for info in infos:
+            data = raw[info.filename]
+            if info.filename in trees:
+                data = etree.tostring(trees[info.filename], xml_declaration=True, encoding="UTF-8", standalone=True)
+            zout.writestr(info, data, compress_type=info.compress_type)
+    strip_thumbnail(dst)
+    return count

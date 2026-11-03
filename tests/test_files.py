@@ -71,3 +71,53 @@ class FileTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class XlsxTests(unittest.TestCase):
+    def test_xlsx_roundtrip_and_leaks(self):
+        try:
+            import openpyxl
+            from openpyxl.comments import Comment
+            from deid_tool.office import process_xlsx
+        except ImportError:
+            self.skipTest("openpyxl 未安裝")
+        import tempfile, zipfile, os
+        td = tempfile.mkdtemp()
+        f = lambda n: os.path.join(td, n)
+        wb = openpyxl.Workbook(); ws = wb.active
+        ws.append(["姓名", "身分證", "金額"])
+        ws.append(["王小明", "A123456789", 100])
+        ws["C3"] = "=C2*2"
+        ws["B2"].comment = Comment("聯絡人 陳大文", "王小明")
+        wb.properties.creator = "王小明"
+        wb.save(f("in.xlsx"))
+        d = Deidentifier("token")
+        process_xlsx(f("in.xlsx"), f("out.xlsx"), d.spans, {"姓名": "NAME"}, d.anonymize_cell)
+        out = openpyxl.load_workbook(f("out.xlsx")).active
+        self.assertEqual(out["A2"].value, "<NAME_1>")
+        self.assertEqual(out["B2"].value, "<ID_1>")
+        self.assertEqual(out["C2"].value, 100)          # 數字保持數字
+        self.assertEqual(out["C3"].value, "=C2*2")      # 公式不動
+        z = zipfile.ZipFile(f("out.xlsx"))
+        blob = b"".join(z.read(n) for n in z.namelist())
+        for pii in ("王小明", "A123456789", "陳大文"):
+            self.assertNotIn(pii.encode(), blob)        # 檔案任何角落都不殘留
+        process_xlsx(f("out.xlsx"), f("back.xlsx"), lambda t: restore_spans(t, d.mapping))
+        back = openpyxl.load_workbook(f("back.xlsx")).active
+        self.assertEqual((back["A2"].value, back["B2"].value), ("王小明", "A123456789"))
+
+
+class ThumbnailTest(unittest.TestCase):
+    def test_docx_thumbnail_removed_and_still_opens(self):
+        try:
+            import docx
+            from deid_tool.office import process_docx
+        except ImportError:
+            self.skipTest("python-docx 未安裝")
+        import tempfile, zipfile, os
+        td = tempfile.mkdtemp()
+        docx.Document().save(os.path.join(td, "a.docx"))
+        process_docx(os.path.join(td, "a.docx"), os.path.join(td, "b.docx"), Deidentifier("mask").spans)
+        names = zipfile.ZipFile(os.path.join(td, "b.docx")).namelist()
+        self.assertFalse([n for n in names if "thumbnail" in n])
+        docx.Document(os.path.join(td, "b.docx"))      # 仍可正常開啟
