@@ -29,6 +29,7 @@ h2::after{content:"";display:block;width:48px;height:1px;background:var(--silver
 .tool{background:var(--card);border:1px solid var(--line);border-radius:20px;padding:24px 26px}
 .bar{display:flex;gap:12px;flex-wrap:wrap;align-items:center;justify-content:space-between;margin-bottom:18px}
 .seg{display:flex;gap:10px;flex-wrap:wrap}
+.bar .seg:last-child{margin-left:auto}
 .btn{border:1px solid var(--line);padding:9px 22px;border-radius:999px;font-weight:400;font-size:.85rem;letter-spacing:.06em;background:color-mix(in srgb,var(--fg) 6%,transparent);transition:transform .25s,box-shadow .25s,background .25s}
 .btn:hover{transform:translateY(-2px);background:color-mix(in srgb,var(--fg) 12%,transparent);box-shadow:0 8px 24px rgba(0,0,0,.2)}
 .btn.on{border-color:var(--accent);color:var(--accent);background:color-mix(in srgb,var(--accent) 12%,transparent)}
