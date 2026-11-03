@@ -76,6 +76,11 @@
       }
       return this.rev.get(k);
     }
+    async spans(text) {   // 供 Office 檔案使用:[[start, end, 替換文字], ...]
+      const out = [];
+      for (const [s, e, typ, val] of scanText(text, this.names)) out.push([s, e, await this._replace(typ, val)]);
+      return out;
+    }
     async anonymize(text) {
       let out = "", pos = 0;
       for (const [s, e, typ, val] of scanText(text, this.names)) {
@@ -86,6 +91,8 @@
   }
   const restore = (text, mapping) => text.replace(/<([A-Z]+)_(\d+)>/g, (m) => (m in mapping ? mapping[m] : m));
 
-  const api = { Deidentifier, scanText, restore, validTwId, luhn };
+  const restoreSpans = (text, mapping) =>
+    [...text.matchAll(/<([A-Z]+)_(\d+)>/g)].filter((m) => m[0] in mapping).map((m) => [m.index, m.index + m[0].length, mapping[m[0]]]);
+  const api = { Deidentifier, scanText, restore, restoreSpans, validTwId, luhn };
   if (typeof module !== "undefined" && module.exports) module.exports = api; else root.Deid = api;
 })(typeof self !== "undefined" ? self : globalThis);

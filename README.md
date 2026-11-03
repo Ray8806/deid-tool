@@ -19,18 +19,20 @@ python -m deid_tool anonymize in.txt -o out.txt --mode hash --key 你的密鑰
 ```
 支援 `.txt/.md`、`.csv`、`.xlsx`、`.docx`、`.pptx`、`.pdf`。
 
-## Word / PowerPoint / PDF
+## Excel / Word / PowerPoint / PDF
 ```bash
-pip install python-docx python-pptx pymupdf   # 用到哪種裝哪種
+pip install python-docx python-pptx lxml   # Word / PowerPoint / Excel(PDF 另需 pymupdf)
 python -m deid_tool anonymize 報告.docx -o out.docx --map map.json --names names.txt
 python -m deid_tool restore out.docx -o back.docx --map map.json
 python -m deid_tool anonymize 簡報.pptx -o out.pptx --map map.json
+python -m deid_tool anonymize 名單.xlsx -o out.xlsx --map map.json --column 姓名=NAME
 python -m deid_tool anonymize 掃描前.pdf -o out.pdf
 ```
 | 格式 | 作法 | 可還原 |
 |---|---|---|
-| Word `.docx` | 逐段落替換,保留字型/粗體等格式;處理內文、表格、頁首頁尾、文字方塊、註解、註腳,並清空作者等檔案屬性 | 是(token 模式) |
+| Word `.docx` | 逐段落替換,保留字型/粗體等格式;處理內文、表格、頁首頁尾、文字方塊、註解、註腳,並清空作者、註解/修訂者與預覽縮圖 | 是(token 模式) |
 | PowerPoint `.pptx` | 同上,另含講者備忘稿 | 是(token 模式) |
+| Excel `.xlsx` | 直接改檔案內部的文字,**格式、數字、公式、圖片、圖表原樣保留**;處理儲存格、註解、文字方塊;`--column` 可指定標題欄整欄處理,並清掉不再被引用的原值 | 是(token 模式) |
 | PDF | 偵測後做**真正的塗黑**(連底層文字層一起移除,複製貼上也找不到),並清空中繼資料 | 否(一律塗黑) |
 
 限制:
@@ -45,7 +47,10 @@ python -m deid_tool anonymize 掃描前.pdf -o out.pdf
 - 要部署成網址:GitHub repo → Settings → Pages → Deploy from a branch → `main` / `/docs`。
   (私人 repo 使用 Pages 需要付費方案;網頁本身不含任何個資,可考慮改為公開 repo。)
 - 規則與 Python 版一致(`docs/deid-core.js` ↔ `deid_tool/core.py`),修改規則時兩邊都要改。
-- 網站版支援文字、`.txt`、`.csv`(整份當文字處理),不含 Excel、Word、PowerPoint、PDF、整欄處理與 NER,這些請用 Python 版。
+- 網站版支援文字、`.txt`、`.csv`,以及 **Word `.docx`、PowerPoint `.pptx`、Excel `.xlsx`**:逐段落替換並保留格式,清除作者與預覽縮圖,Excel 可指定欄名整欄當姓名處理;處理後的檔案直接下載,還原時載入該檔並貼上對照表即可。
+- 網站版不含 PDF 與 NER,這些請用 Python 版。
+- `docs/jszip.min.js` 為 [JSZip](https://stuk.github.io/jszip/) 3.10.1(MIT 授權,見 `docs/JSZIP-LICENSE.md`),以自家檔案提供,頁面不需連到外部網站。
+- `docs/samples/` 內是虛構資料的 Word / PowerPoint / Excel 範例檔。
 
 ## 網頁介面(本機)
 ```bash

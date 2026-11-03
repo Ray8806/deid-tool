@@ -27,12 +27,13 @@
     <p class="role">個資遮蔽 · 可還原</p>
     <p class="lead">貼上文字,一鍵移除身分證、電話、地址、姓名等個資。所有處理都在你的瀏覽器內完成,不上傳、不連線。</p>
     <ul class="chips"><li>身分證</li><li>手機 / 市話</li><li>Email</li><li>地址</li><li>日期</li><li>信用卡</li><li>病歷號</li><li>姓名</li></ul>
+    <ul class="chips"><li>文字</li><li>CSV</li><li>Word</li><li>PowerPoint</li><li>Excel</li></ul>
   </section>
 
   <section id="how">
     <h2>三步驟上手</h2>
     <div class="cards">
-      <div class="card"><span class="tag">STEP 1</span><h3>放入文字</h3><p>貼上內容、載入 .txt / .csv,或直接點下方的範例。</p></div>
+      <div class="card"><span class="tag">STEP 1</span><h3>放入文字</h3><p>貼上內容,或載入 Word、PowerPoint、Excel、CSV、文字檔;也可以直接點下方的範例。</p></div>
       <div class="card"><span class="tag">STEP 2</span><h3>選擇模式</h3><p>要日後還原選 token;只要遮掉選 mask;要跨檔案對應同一個人選 hash。</p></div>
       <div class="card"><span class="tag">STEP 3</span><h3>檢查並使用</h3><p>按「去識別化」,確認右側輸出後再複製或下載。需要時可用對照表還原。</p></div>
     </div>
@@ -48,7 +49,7 @@
           <button class="btn" data-mode="hash" title="HMAC 假名化,同一個值得到同一個代號">hash · 假名化</button>
         </div>
         <div class="seg">
-          <label class="btn small" for="file">載入檔案<input id="file" type="file" accept=".txt,.md,.csv,text/plain,text/csv" hidden></label>
+          <label class="btn small" for="file">載入檔案<input id="file" type="file" accept=".txt,.md,.csv,.docx,.pptx,.xlsx" hidden></label>
         </div>
       </div>
 
@@ -60,6 +61,12 @@
           <button class="btn small" data-ex="chat">客服對話</button>
           <button class="btn small" data-ex="csv">客戶名單</button>
           <button class="btn small" data-ex="mail">一般信件</button>
+        </div>
+        <div class="seg samples">
+          <span class="label">Word / PPT / Excel 範例檔(可下載後再載入)</span>
+          <a class="btn small" href="samples/sample-medical.docx" download>Word</a>
+          <a class="btn small" href="samples/sample-slides.pptx" download>PowerPoint</a>
+          <a class="btn small" href="samples/sample-customers.xlsx" download>Excel</a>
         </div>
       </div>
 
@@ -87,6 +94,8 @@
         <summary>已知姓名清單(一行一個,補強姓名偵測)</summary>
         <textarea id="names" aria-label="已知姓名"></textarea>
         <p class="hint">沒有「姓名:」等關鍵字的人名無法自動辨識,把已知姓名放在這裡就會一併處理。</p>
+        <div class="label colsrow">Excel:整欄當姓名處理的欄名(第一列標題,逗號分隔)</div>
+        <input id="cols" type="text" value="姓名" aria-label="Excel 姓名欄名">
       </details>
       <p class="warn">規則式偵測不保證涵蓋所有個資,正式使用前請人工抽查輸出結果。</p>
     </div>
@@ -107,7 +116,9 @@
   &nbsp;·&nbsp;
   <a href="https://ray8806.github.io/Personal-website/">返回個人網站</a>
 </footer>
+<script src="jszip.min.js"></script>
 <script src="deid-core.js"></script>
+<script src="office-web.js"></script>
 <script src="app.js"></script>
 </body>
 </html>
