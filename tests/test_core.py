@@ -90,3 +90,10 @@ class RealWorldFormats(unittest.TestCase):
         from deid_tool.core import auto_column_type as t
         self.assertEqual([t(h) for h in ("聯絡人", "連絡電話", "發票地址", "Email", "出生日", "聯絡人電話", "據點抬頭", "統一編號")],
                          ["NAME", "PHONE", "ADDRESS", "EMAIL", "DATE", "PHONE", None, None])
+
+
+class ManualTerms(unittest.TestCase):
+    def test_terms_with_type(self):
+        d = Deidentifier("token", names=["陳大文", ("昨天的會議室A", "OTHER")])
+        out = d.anonymize_text("陳大文說昨天的會議室A很吵")
+        self.assertEqual(out, "<NAME_1>說<OTHER_1>很吵")

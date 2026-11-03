@@ -48,6 +48,7 @@ python -m deid_tool anonymize 掃描前.pdf -o out.pdf
   (私人 repo 使用 Pages 需要付費方案;網頁本身不含任何個資,可考慮改為公開 repo。)
 - 規則與 Python 版一致(`docs/deid-core.js` ↔ `deid_tool/core.py`),修改規則時兩邊都要改。
 - 網站版支援文字、`.txt`、`.csv`,以及 **Word `.docx`、PowerPoint `.pptx`、Excel `.xlsx`**:逐段落替換並保留格式,清除作者與預覽縮圖,Excel 可指定欄名整欄當姓名處理;處理後的檔案直接下載,還原時載入該檔並貼上對照表即可。
+- **手動標記**:在輸入框選取文字按「標記選取文字」,或在輸入框右邊直接輸入詞,文中(或整份 Word/PPT/Excel 內)所有相同字串都會處理,可指定類型、可隨時移除。人名沒有關鍵字時特別好用。
 - 網站版不含 PDF 與 NER,這些請用 Python 版。
 - `docs/jszip.min.js` 為 [JSZip](https://stuk.github.io/jszip/) 3.10.1(MIT 授權,見 `docs/JSZIP-LICENSE.md`),以自家檔案提供,頁面不需連到外部網站。
 - `docs/samples/` 內是虛構資料的 Word / PowerPoint / Excel 範例檔。

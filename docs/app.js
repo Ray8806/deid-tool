@@ -1,5 +1,5 @@
 const $ = (id) => document.getElementById(id);
-const LABELS = { NAME: "姓名", ID: "身分證", PHONE: "電話", EMAIL: "Email", ADDRESS: "地址", DATE: "日期", CARD: "信用卡", IP: "IP", MRN: "病歷號" };
+const LABELS = { OTHER: "其他", NAME: "姓名", ID: "身分證", PHONE: "電話", EMAIL: "Email", ADDRESS: "地址", DATE: "日期", CARD: "信用卡", IP: "IP", MRN: "病歷號" };
 const EXAMPLES = {
   medical: { mode: "token", names: "",
     text: "病人:王小明\n身分證:B101000006  手機:0912-345-678\nEmail:wang@example.com\n住址:台北市大安區和平東路二段106號3樓\n就診日:民國113年5月6日  病歷號:MRN-00123\n主訴:持續頭痛三天。聯絡人 陳大文(家屬)。\n\n(以上皆為虛構範例)" },
@@ -16,6 +16,7 @@ const MODE_HINT = {
   hash: "hash:用你的密鑰把同一個值轉成固定代號,跨檔案可對應同一人,但無法還原。",
 };
 let mode = "token";
+let terms = [];       // 手動標記的詞 [{text, type}]
 let pending = null;   // 已載入的 Office 檔 {name, ext, buf}
 let result = null;    // 處理後檔案 {name, blob}
 const OFFICE = { docx: "Word 文件", pptx: "PowerPoint 簡報", xlsx: "Excel 活頁簿" };
@@ -29,6 +30,29 @@ function saveBlob(name, blob) {
   const link = document.createElement("a");
   link.href = URL.createObjectURL(blob); link.download = name; link.click();
   setTimeout(() => URL.revokeObjectURL(link.href), 4000);
+}
+function renderTerms() {
+  const ul = $("terms"); ul.textContent = "";
+  terms.forEach((t, i) => {
+    const li = document.createElement("li"), sm = document.createElement("small"), x = document.createElement("button");
+    li.append(t.text.length > 24 ? t.text.slice(0, 24) + "…" : t.text);
+    sm.textContent = LABELS[t.type] || t.type; li.append(sm);
+    x.textContent = "×"; x.setAttribute("aria-label", "移除 " + t.text);
+    x.onclick = () => { terms.splice(i, 1); renderTerms(); };
+    li.append(x); ul.append(li);
+  });
+}
+async function addTerm(text) {
+  text = (text || "").trim();
+  if (!text) return say("請先在輸入框選取文字,或在右邊輸入要處理的詞。", true);
+  if (text.length > 200) return say("選取範圍太長,請縮小。", true);
+  if (!terms.some((t) => t.text === text && t.type === $("marktype").value)) terms.push({ text, type: $("marktype").value });
+  renderTerms();
+  if (!pending) { await anonymize(); say("已標記「" + (text.length > 20 ? text.slice(0, 20) + "…" : text) + "」,文中所有相同字串都已處理。"); }
+  else say("已加入。按「去識別化」處理整份檔案(檔案內所有相同字串都會處理)。");
+}
+function allNames() {
+  return [...$("names").value.split("\n").map((s) => s.trim()).filter(Boolean), ...terms];
 }
 function say(msg, err) { const s = $("status"); s.textContent = msg; s.classList.toggle("err", !!err); }
 
@@ -52,8 +76,7 @@ async function runOffice(kind) {
   const ext = pending.ext;
   let outName, spansFn, opts = {}, d = null, colReport = [];
   if (kind === "anonymize") {
-    const names = $("names").value.split("\n").map((s) => s.trim()).filter(Boolean);
-    d = new Deid.Deidentifier(mode, names, $("key").value);
+    d = new Deid.Deidentifier(mode, allNames(), $("key").value);
     spansFn = (t) => d.spans(t);
     const cols = new Map($("cols").value.split(/[,,、]/).map((s) => s.trim()).filter(Boolean).map((k) => [k, "NAME"]));
     colReport = [];
@@ -81,8 +104,7 @@ async function runOffice(kind) {
 async function anonymize() {
   if (pending) { try { await runOffice("anonymize"); } catch (e) { say("錯誤:" + e.message, true); } return; }
   try {
-    const names = $("names").value.split("\n").map((s) => s.trim()).filter(Boolean);
-    const d = new Deid.Deidentifier(mode, names, $("key").value);
+    const d = new Deid.Deidentifier(mode, allNames(), $("key").value);
     $("out").value = await d.anonymize($("inp").value);
     $("map").value = mode === "token" ? JSON.stringify(d.mapping, null, 2) : "";
     if (mode === "token") $("mapbox").open = true;
@@ -103,6 +125,12 @@ function download(name, text) {
   a.download = name; a.click(); URL.revokeObjectURL(a.href);
 }
 
+$("mark").onclick = () => {
+  const el = $("inp"), t = el.value.slice(el.selectionStart, el.selectionEnd);
+  if (pending) return say("Office 檔案沒有預覽,請在右邊輸入要處理的詞。", true);
+  addTerm(t);
+};
+$("termin").addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); addTerm($("termin").value); $("termin").value = ""; } });
 $("go").onclick = anonymize;
 $("back").onclick = restore;
 document.querySelectorAll("#examples .btn").forEach((b) => (b.onclick = async () => {
@@ -133,7 +161,7 @@ $("inp").addEventListener("input", () => { if (pending) clearPending(); });
 $("dlOut").onclick = () => (result ? saveBlob(result.name, result.blob) : download("deidentified.txt", $("out").value));
 $("dlMap").onclick = () => download("map.json", $("map").value);
 $("copy").onclick = async () => { if (result) return say("這是檔案處理結果,請用「下載」。"); try { await navigator.clipboard.writeText($("out").value); say("已複製輸出。"); } catch (e) { say("無法複製,請手動選取。", true); } };
-$("clear").onclick = () => { clearPending(); for (const id of ["inp", "out", "map", "key", "names"]) $(id).value = ""; showStats({}); say("已清除。"); };
+$("clear").onclick = () => { clearPending(); terms = []; renderTerms(); for (const id of ["inp", "out", "map", "key", "names"]) $(id).value = ""; showStats({}); say("已清除。"); };
 $("mapfile").onchange = async (e) => {
   const f = e.target.files[0]; e.target.value = ""; if (!f) return;
   $("map").value = await f.text(); $("mapbox").open = true; say("已載入對照表 " + f.name + "。");

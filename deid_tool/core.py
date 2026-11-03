@@ -69,9 +69,12 @@ def scan_text(text, names=(), rules=RULES):
             if check and not check(text[s:e]):
                 continue
             hits.append((s, e, typ))
-    for name in names:
+    for item in names:   # 字串 = 姓名;(文字, 類型) = 手動指定的詞
+        name, typ = (item, "NAME") if isinstance(item, str) else item
+        if not name:
+            continue
         for m in re.finditer(re.escape(name), text):
-            hits.append((m.start(), m.end(), "NAME"))
+            hits.append((m.start(), m.end(), typ))
     # 重疊時保留較長者
     hits.sort(key=lambda h: (h[0], -(h[1] - h[0])))
     out, last_end = [], -1

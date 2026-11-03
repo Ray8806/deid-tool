@@ -73,7 +73,13 @@
       <div id="keyrow"><div class="label">密鑰(hash 模式用,請自行保管)</div><input id="key" type="password" autocomplete="off" aria-label="密鑰"></div>
 
       <div class="grid io">
-        <div class="pane"><div class="label">輸入</div><textarea id="inp" placeholder="貼上要處理的文字" aria-label="輸入"></textarea></div>
+        <div class="pane"><div class="label">輸入</div><textarea id="inp" placeholder="貼上要處理的文字" aria-label="輸入"></textarea>
+          <div class="markbar">
+            <button class="btn small" id="mark" title="先在上方輸入框選取文字,再按這裡">標記選取文字</button>
+            <select id="marktype" aria-label="標記類型"><option value="NAME">姓名</option><option value="ADDRESS">地址</option><option value="PHONE">電話</option><option value="ID">身分證</option><option value="EMAIL">Email</option><option value="OTHER">其他</option></select>
+            <input id="termin" type="text" placeholder="或輸入詞後按 Enter" aria-label="手動輸入要處理的詞">
+          </div>
+          <ul class="chips left" id="terms"></ul></div>
         <div class="pane"><div class="label"><span>輸出</span><div class="seg"><button class="btn small" id="copy">複製</button><button class="btn small" id="dlOut">下載</button></div></div><textarea id="out" readonly aria-label="輸出"></textarea></div>
       </div>
 

@@ -57,8 +57,10 @@
         hits.push([s, e, typ]);
       }
     }
-    for (const n of names) {
-      for (const m of text.matchAll(new RegExp(esc(n), "g"))) hits.push([m.index, m.index + n.length, "NAME"]);
+    for (const item of names) {   // 字串 = 姓名;{text, type} = 手動指定的詞
+      const n = typeof item === "string" ? item : item.text, typ = typeof item === "string" ? "NAME" : item.type;
+      if (!n) continue;
+      for (const m of text.matchAll(new RegExp(esc(n), "g"))) hits.push([m.index, m.index + n.length, typ]);
     }
     hits.sort((a, b) => a[0] - b[0] || (b[1] - b[0]) - (a[1] - a[0]));
     const out = []; let last = -1;
