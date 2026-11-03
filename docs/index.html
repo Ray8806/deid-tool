@@ -87,8 +87,11 @@
 
       <details id="mapbox">
         <summary>對照表(含原始個資,請妥善保管;還原時貼在這裡)</summary>
-        <textarea id="map" spellcheck="false" aria-label="對照表"></textarea>
-        <div class="acts"><button class="btn small" id="dlMap">下載對照表</button></div>
+        <p class="maphelp"><b>通常不用手動填。</b>用 token 模式按「去識別化」後,這裡會自動出現「代號 ↔ 原文」的對照表,請按「下載對照表」存成 map.json。<br>
+          <b>要還原時</b>:載入當初的 map.json(或把內容貼在下面),再按「用對照表還原」。mask / hash 模式不會產生對照表,也無法還原。</p>
+        <textarea id="map" spellcheck="false" aria-label="對照表" placeholder='自動產生,格式如:{"<NAME_1>": "王小明", "<ID_1>": "A123456789"}'></textarea>
+        <div class="acts"><button class="btn small" id="dlMap">下載對照表</button>
+          <label class="btn small" for="mapfile">載入對照表檔<input id="mapfile" type="file" accept=".json,application/json" hidden></label></div>
       </details>
       <details>
         <summary>已知姓名清單(一行一個,補強姓名偵測)</summary>

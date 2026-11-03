@@ -132,10 +132,13 @@ $("dlOut").onclick = () => (result ? saveBlob(result.name, result.blob) : downlo
 $("dlMap").onclick = () => download("map.json", $("map").value);
 $("copy").onclick = async () => { if (result) return say("這是檔案處理結果,請用「下載」。"); try { await navigator.clipboard.writeText($("out").value); say("已複製輸出。"); } catch (e) { say("無法複製,請手動選取。", true); } };
 $("clear").onclick = () => { clearPending(); for (const id of ["inp", "out", "map", "key", "names"]) $(id).value = ""; showStats({}); say("已清除。"); };
+$("mapfile").onchange = async (e) => {
+  const f = e.target.files[0]; e.target.value = ""; if (!f) return;
+  $("map").value = await f.text(); $("mapbox").open = true; say("已載入對照表 " + f.name + "。");
+};
 $("theme").onclick = () => {
   const el = document.documentElement;
-  const dark = el.dataset.theme ? el.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
-  el.dataset.theme = dark ? "light" : "dark";
+  el.dataset.theme = el.dataset.theme === "light" ? "dark" : "light";
   try { localStorage.setItem("deid-theme", el.dataset.theme); } catch (e) {}
 };
 
